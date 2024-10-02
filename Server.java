@@ -5,6 +5,7 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Scanner;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -14,8 +15,10 @@ public class Server implements  Runnable{
     private ServerSocket server;
     private boolean done;
     private ExecutorService pool;
+    private Scanner sc;
 
     public Server(){
+        sc = new Scanner(System.in);
         connections = new ArrayList<>();
         done = false;
     }
@@ -23,7 +26,17 @@ public class Server implements  Runnable{
     @Override
     public void run() {
         try {
-            server = new ServerSocket(9999);
+            System.out.println("Qual servidor deseja iniciar? (1/2/3)");
+            int serverIndex = sc.nextInt();
+            if(serverIndex == 1){
+                server = new ServerSocket(9999);
+            }
+            else if(serverIndex == 2){
+                server = new ServerSocket(9998);
+            }
+            else if(serverIndex == 3){
+                server = new ServerSocket(9997);
+            }
             pool = Executors.newCachedThreadPool();
             while (!done) {
                 Socket client = server.accept();
