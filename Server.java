@@ -107,7 +107,13 @@ public class Server implements  Runnable{
                     }
                     else if(message.startsWith("/quit")){
                             broadcast(nickname + " left the chat!");
+                            System.out.println(nickname + "left the chat!");
                             shutdown();
+                    }
+                    else if(message.startsWith("/timeout")){
+                        broadcast(nickname + " desconectado por inatividade");
+                        System.out.println(nickname + " desconectado!");
+                        shutdown();
                     }
                     else{
                         broadcast(nickname + ": " + message);

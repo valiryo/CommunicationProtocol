@@ -3,7 +3,10 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.time.LocalDateTime;
 import java.util.Scanner;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class Client implements Runnable{
     private Socket client;
@@ -60,12 +63,20 @@ public class Client implements Runnable{
     }
 
     class InputHandler implements Runnable{
+
+        private static final long TIMEOUT = 1 * 15 * 1000;
+        private Timer timer = new Timer();
+        private int strike = 0;
+
         @Override
         public void run() {
             try{
                 BufferedReader inReader = new BufferedReader(new InputStreamReader(System.in));
+                startInactivityTimer();
                 while(!done){
                     String message = inReader.readLine();
+                    restartInactivityTimer();
+                    strike = 0;
                     if(message.equals("/quit")){
                         out.println(message);
                         inReader.close();
@@ -81,6 +92,37 @@ public class Client implements Runnable{
                 shutdown();
             }
         }
+
+        private void startInactivityTimer() {
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    if(strike < 3){
+                        //TODO: implementar ação que será executada de 3 em 3 minutos
+                        System.out.println("Timeout!!" + LocalDateTime.now());
+                        strike++;
+                        if(strike >= 3){
+                            timer.cancel();
+                            out.println("/timeout");
+                        }
+                        restartInactivityTimer();
+                    }
+                    else{
+                        timer.cancel();
+                        Client.this.shutdown();
+                    }
+
+                }
+            }, TIMEOUT); // Aguarda 3 minutos antes de enviar o sinal de inatividade
+        }
+
+        private void restartInactivityTimer() {
+            timer.cancel(); // Cancela o timer anterior
+            timer = new Timer(); // Cria um novo timer
+            startInactivityTimer(); // Inicia o novo timer
+        }
+
+
     }
 
     public static void main(String[] args) {
