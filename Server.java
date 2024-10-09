@@ -6,7 +6,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Scanner;
-import java.util.concurrent.Executor;
+//import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -57,6 +57,16 @@ public class Server implements  Runnable{
         }
     }
 
+    public void sendPrivateMessage(String message, String recieveNickname, String senderNickname) {
+        for (ConectionHandler ch : connections) {
+            if (ch != null && ch.getNickname().equals(recieveNickname)) {
+                ch.sendMessage("[Privado de " + senderNickname + "]: " + message);
+            }
+        }
+    }
+    
+
+
     public void shutdown(){
         try{
             done = true;
@@ -77,6 +87,10 @@ public class Server implements  Runnable{
         private BufferedReader in;
         private PrintWriter out;
         private String nickname;
+
+        public String getNickname() {
+            return nickname;
+        }
 
 
         public ConectionHandler(Socket client) {
@@ -115,6 +129,23 @@ public class Server implements  Runnable{
                         System.out.println(nickname + " desconectado!");
                         shutdown();
                     }
+
+                    else if(message.startsWith("/msg ")) {
+                        {
+                            String[] messageSplit = message.split(" ", 3);
+                            if (messageSplit.length == 3) {
+                                String recieveNickname = messageSplit[1];
+                                String privateMessage = messageSplit[2];
+                                sendPrivateMessage(privateMessage, recieveNickname, nickname);
+                            
+
+                    } else {
+                        out.println("Incorrect private message format. Use /msg <nickname> <message>");
+                    }
+                
+                }
+            }
+
                     else{
                         broadcast(nickname + ": " + message);
                     }

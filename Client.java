@@ -64,7 +64,7 @@ public class Client implements Runnable{
 
     class InputHandler implements Runnable{
 
-        private static final long TIMEOUT = 1 * 15 * 1000;
+        private static final long TIMEOUT = 1 * 15 * 100000; //adiconei dois 0 para aumentar o tempo para teste
         private Timer timer = new Timer();
         private int strike = 0;
 
@@ -93,7 +93,7 @@ public class Client implements Runnable{
             }
         }
 
-        private void startInactivityTimer() {
+       private void startInactivityTimer() {
             timer.schedule(new TimerTask() {
                 @Override
                 public void run() {
@@ -116,6 +116,7 @@ public class Client implements Runnable{
             }, TIMEOUT); // Aguarda 3 minutos antes de enviar o sinal de inatividade
         }
 
+
         private void restartInactivityTimer() {
             timer.cancel(); // Cancela o timer anterior
             timer = new Timer(); // Cria um novo timer
@@ -124,6 +125,7 @@ public class Client implements Runnable{
 
 
     }
+        
 
     public static void main(String[] args) {
         Client client = new Client();
