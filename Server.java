@@ -20,8 +20,12 @@ public class Server implements  Runnable{
     public Server(){
         sc = new Scanner(System.in);
         connections = new ArrayList<>();
+        messageHistory = new ArrayList<>();
         done = false;
     }
+
+    private ArrayList<String> messageHistory;
+
 
     @Override
     public void run() {
@@ -50,6 +54,7 @@ public class Server implements  Runnable{
     }
 
     public void broadcast(String message){
+    messageHistory.add(message);
         for(ConectionHandler ch : connections){
             if(ch != null){
                 ch.sendMessage(message);
@@ -97,6 +102,14 @@ public class Server implements  Runnable{
             this.client = client;
         }
 
+        public void sendUserHistory(String targetNickname) {
+            for (String message : messageHistory) {
+                if (message.startsWith(targetNickname + ": ") || message.contains(" " + targetNickname + " ")) {
+                    out.println(message);
+                }
+            }
+        }
+
         @Override
         public void run() {
             try{
@@ -105,6 +118,10 @@ public class Server implements  Runnable{
                 out.println("Please enter a nickname: ");
                 nickname = in.readLine();
                 System.out.println(nickname + " Connected!");
+
+                
+                
+
                 broadcast(nickname + " joined the chat!");
                 String message;
                 while((message = in.readLine()) != null){
@@ -145,6 +162,19 @@ public class Server implements  Runnable{
                 
                 }
             }
+
+                    else if(message.startsWith("/history")) {
+                        
+                        String[] messageSplit = message.split(" ", 2);
+                        if(messageSplit.length == 2) {
+                            String historyNick = messageSplit[1];
+                            sendUserHistory(historyNick);
+                        } else {
+                            out.println("Incorret history format. Use /history <nickname>");
+                        }
+
+                    }
+
 
                     else{
                         broadcast(nickname + ": " + message);
