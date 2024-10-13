@@ -19,16 +19,21 @@ public class Client implements Runnable{
     public void run() {
         try {
             sc = new Scanner(System.in);
+            System.out.println("Digite o IP do servidor:");
+            String serverIP = sc.nextLine(); 
+
+
             System.out.println("Em qual servidor deseja conectar? (1/2/3)");
+
             int serverIndex = sc.nextInt();
             if(serverIndex == 1){
-                client = new Socket("127.0.0.1", 9999);
+                client = new Socket(serverIP, 9999);
             }
             else if(serverIndex == 2){
-                client = new Socket("127.0.0.1", 9998);
+                client = new Socket(serverIP, 9998);
             }
             else if(serverIndex == 3){
-                client = new Socket("127.0.0.1", 9997);
+                client = new Socket(serverIP, 9997);
             }
 
             in = new BufferedReader(new InputStreamReader(client.getInputStream()));
@@ -64,7 +69,7 @@ public class Client implements Runnable{
 
     class InputHandler implements Runnable{
 
-        private static final long TIMEOUT = 1 * 15 * 100000; //adiconei dois 0 para aumentar o tempo para teste
+        private static final long TIMEOUT = 3 * 60 * 1000; 
         private Timer timer = new Timer();
         private int strike = 0;
 
