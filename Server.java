@@ -70,12 +70,14 @@ public class Server implements Runnable {
     }
 
     //Função para mensagens privadas
-    public void sendPrivateMessage(String message, String recieveNickname, String senderNickname) {
+    public Boolean sendPrivateMessage(String message, String recieveNickname, String senderNickname) {
         for (ConectionHandler ch : connections) {
             if (ch != null && ch.getNickname().equals(recieveNickname)) {
                 ch.sendMessage("[Private from " + senderNickname + "]: " + message);
+                return true;
             }
         }
+        return false;
     }
 
 
@@ -110,12 +112,15 @@ public class Server implements Runnable {
         }
 
         //Função de histórico de mensagens
-        public void sendUserHistory(String targetNickname) {
+        public Boolean sendUserHistory(String targetNickname) {
+            Boolean hasMessage = false;
             for (String message : messageHistory) {
                 if (message.startsWith(targetNickname + ": ") || message.contains(" " + targetNickname + " ")) {
                     out.println(message);
+                    hasMessage = true;
                 }
             }
+            return hasMessage;
         }
 
         @Override
@@ -146,6 +151,7 @@ public class Server implements Runnable {
                             out.println("No nickname provided");
                         }
                     } else if (message.startsWith("/quit")) {
+                        out.println("You have been disconnected");
                         broadcast(nickname + " left the chat!");
                         System.out.println(nickname + "left the chat!");
                         shutdown();
@@ -159,7 +165,12 @@ public class Server implements Runnable {
                             if (messageSplit.length == 3) {
                                 String recieveNickname = messageSplit[1];
                                 String privateMessage = messageSplit[2];
-                                sendPrivateMessage(privateMessage, recieveNickname, nickname);
+                                if(sendPrivateMessage(privateMessage, recieveNickname, nickname)){
+                                    out.println("Private message sent!");
+                                }
+                                else{
+                                    out.println("Invalid nickname provided");
+                                }
 
 
                             } else {
@@ -172,16 +183,23 @@ public class Server implements Runnable {
                         String[] messageSplit = message.split(" ", 2);
                         if (messageSplit.length == 2) {
                             String historyNick = messageSplit[1];
-                            sendUserHistory(historyNick);
+                            if(sendUserHistory(historyNick)){
+                                out.println();
+                                out.println("History sent");
+                            }
+                            else{
+                                out.println("No messages found");
+                            }
                         } else {
-                            out.println("Incorret history format. Use /history <nickname>");
+                            out.println("Incorrect history format. Use /history <nickname>");
                         }
 
                     } else if (message.startsWith("/msg")) {
+                        out.println("[Transmitting...]");
                         broadcast(nickname + ": " + message.substring(5));
                     }
                     else{
-                        out.println("Incorrect message format");
+                        out.println("Incorrect command format");
                     }
 
                 }
