@@ -8,7 +8,7 @@ import java.util.Scanner;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class Client implements Runnable{
+public class Client implements Runnable {
     private Socket client;
     private BufferedReader in;
     private PrintWriter out;
@@ -19,20 +19,18 @@ public class Client implements Runnable{
     public void run() {
         try {
             sc = new Scanner(System.in);
-            System.out.println("Digite o IP do servidor:");
-            String serverIP = sc.nextLine(); 
+            System.out.println("Enter the server IP:");
+            String serverIP = sc.nextLine();
 
 
-            System.out.println("Em qual servidor deseja conectar? (1/2/3)");
+            System.out.println("Which server do you want to connect to? (1/2/3)");
 
             int serverIndex = sc.nextInt();
-            if(serverIndex == 1){
+            if (serverIndex == 1) {
                 client = new Socket(serverIP, 9999);
-            }
-            else if(serverIndex == 2){
+            } else if (serverIndex == 2) {
                 client = new Socket(serverIP, 9998);
-            }
-            else if(serverIndex == 3){
+            } else if (serverIndex == 3) {
                 client = new Socket(serverIP, 9997);
             }
 
@@ -44,75 +42,70 @@ public class Client implements Runnable{
             t.start();
 
             String inMessage;
-            while((inMessage = in.readLine()) != null){
+            while ((inMessage = in.readLine()) != null) {
                 System.out.println(inMessage);
             }
-        }
-        catch(IOException e){
+        } catch (IOException e) {
             shutdown();
         }
     }
 
-    public void shutdown(){
+    public void shutdown() {
         done = true;
-        try{
+        try {
 
             in.close();
             out.close();
-            if(!client.isClosed()){
+            if (!client.isClosed()) {
                 client.close();
             }
-        } catch(IOException e) {
+        } catch (IOException e) {
             //Ignore
         }
     }
 
-    class InputHandler implements Runnable{
+    class InputHandler implements Runnable {
 
-        private static final long TIMEOUT = 3 * 60 * 1000; 
+        private static final long TIMEOUT = 3 * 60 * 1000;
         private Timer timer = new Timer();
         private int strike = 0;
 
         @Override
         public void run() {
-            try{
+            try {
                 BufferedReader inReader = new BufferedReader(new InputStreamReader(System.in));
                 startInactivityTimer();
-                while(!done){
+                while (!done) {
                     String message = inReader.readLine();
                     restartInactivityTimer();
                     strike = 0;
-                    if(message.equals("/quit")){
+                    if (message.equals("/quit")) {
                         out.println(message);
                         inReader.close();
                         shutdown();
 
-                    }
-                    else{
+                    } else {
                         out.println(message);
                     }
                 }
-            }
-            catch (IOException e){
+            } catch (IOException e) {
                 shutdown();
             }
         }
 
-       private void startInactivityTimer() {
+        private void startInactivityTimer() {
             timer.schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    if(strike < 3){
-                        //TODO: implementar ação que será executada de 3 em 3 minutos
-                        System.out.println("Timeout!!" + LocalDateTime.now());
+                    if (strike < 3) {
+                        System.out.println("Timeout!!");
                         strike++;
-                        if(strike >= 3){
+                        if (strike >= 3) {
                             timer.cancel();
                             out.println("/timeout");
                         }
                         restartInactivityTimer();
-                    }
-                    else{
+                    } else {
                         timer.cancel();
                         Client.this.shutdown();
                     }
@@ -130,7 +123,7 @@ public class Client implements Runnable{
 
 
     }
-        
+
 
     public static void main(String[] args) {
         Client client = new Client();

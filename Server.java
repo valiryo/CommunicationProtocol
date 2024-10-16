@@ -10,38 +10,44 @@ import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class Server implements  Runnable{
-    private ArrayList<ConectionHandler> connections;
+public class Server implements Runnable {
+    private ArrayList<ConectionHandler> connections; //Lista dos clientes conectados no servidor
     private ServerSocket server;
-    private boolean done;
-    private ExecutorService pool;
+    private boolean done;   //Booleana de apoio para monitorar se o servidor está funcionando ou não
+    private ExecutorService pool; //pool de threads que contem os clientes
     private Scanner sc;
+    private ArrayList<String> messageHistory; //lista de mensagens de cada cliente
 
-    public Server(){
+
+    public Server() {
         sc = new Scanner(System.in);
         connections = new ArrayList<>();
         messageHistory = new ArrayList<>();
         done = false;
     }
 
-    private ArrayList<String> messageHistory;
+
 
 
     @Override
     public void run() {
         try {
-            System.out.println("Qual servidor deseja iniciar? (1/2/3)");
+            System.out.println("Which room do you want to start? (1/2/3)");
             int serverIndex = sc.nextInt();
-            if(serverIndex == 1){
+
+            //Oferecemos 3 salas de conversas. Cada uma é implementada com uma porta diferente.
+            if (serverIndex == 1) {
                 server = new ServerSocket(9999);
-            }
-            else if(serverIndex == 2){
+            } else if (serverIndex == 2) {
                 server = new ServerSocket(9998);
-            }
-            else if(serverIndex == 3){
+            } else if (serverIndex == 3) {
                 server = new ServerSocket(9997);
             }
-            pool = Executors.newCachedThreadPool();
+            pool = Executors.newCachedThreadPool();  //Criando a pool de threads.
+
+            /*  Enquanto o servidor não for finalizado: aceitamos qualquer cliente que requisitar conexão,
+                criamos um objeto de gerenciamento para esse cliente, e inserimos o objeto de gerenciamento na lista de clientes conectados.
+            */
             while (!done) {
                 Socket client = server.accept();
                 ConectionHandler handler = new ConectionHandler(client);
@@ -53,45 +59,46 @@ public class Server implements  Runnable{
         }
     }
 
-    public void broadcast(String message){
-    messageHistory.add(message);
-        for(ConectionHandler ch : connections){
-            if(ch != null){
+    //Transmite uma mensagem para todos os clientes conectados
+    public void broadcast(String message) {
+        messageHistory.add(message);
+        for (ConectionHandler ch : connections) {
+            if (ch != null) {
                 ch.sendMessage(message);
             }
         }
     }
 
+    //Função para mensagens privadas
     public void sendPrivateMessage(String message, String recieveNickname, String senderNickname) {
         for (ConectionHandler ch : connections) {
             if (ch != null && ch.getNickname().equals(recieveNickname)) {
-                ch.sendMessage("[Privado de " + senderNickname + "]: " + message);
+                ch.sendMessage("[Private from " + senderNickname + "]: " + message);
             }
         }
     }
-    
 
 
-    public void shutdown(){
-        try{
+    public void shutdown() {
+        try {
             done = true;
             pool.shutdown();
-            if(!server.isClosed()){
+            if (!server.isClosed()) {
                 server.close();
             }
-            for(ConectionHandler ch: connections){
+            for (ConectionHandler ch : connections) {
                 ch.shutdown();
             }
-        } catch(IOException e) {
+        } catch (IOException e) {
             //ignore
         }
     }
 
-    class ConectionHandler implements Runnable{
+    class ConectionHandler implements Runnable {
         private Socket client;
-        private BufferedReader in;
-        private PrintWriter out;
-        private String nickname;
+        private BufferedReader in; //Buffer para receber dados dos clientes
+        private PrintWriter out; //Buffer para mandar dados para os clientes
+        private String nickname; //nome do usuário
 
         public String getNickname() {
             return nickname;
@@ -102,6 +109,7 @@ public class Server implements  Runnable{
             this.client = client;
         }
 
+        //Função de histórico de mensagens
         public void sendUserHistory(String targetNickname) {
             for (String message : messageHistory) {
                 if (message.startsWith(targetNickname + ": ") || message.contains(" " + targetNickname + " ")) {
@@ -112,20 +120,22 @@ public class Server implements  Runnable{
 
         @Override
         public void run() {
-            try{
+            try {
+
                 out = new PrintWriter(client.getOutputStream(), true);
                 in = new BufferedReader(new InputStreamReader(client.getInputStream()));
                 out.println("Please enter a nickname: ");
                 nickname = in.readLine();
                 System.out.println(nickname + " Connected!");
-
-                
-                
-
                 broadcast(nickname + " joined the chat!");
+
+                /*
+                    Enquando houver mensagens: verifico se é um comando dentre os listados, e executo a devida
+                    função para cada um. Se não, informo o cliente que
+                */
                 String message;
-                while((message = in.readLine()) != null){
-                    if(message.startsWith("/nick ")) {
+                while ((message = in.readLine()) != null) {
+                    if (message.startsWith("/nick ")) {
                         String[] messageSplit = message.split(" ", 2);
                         if (messageSplit.length == 2) {
                             broadcast(nickname + " rename themselves to " + messageSplit[1]);
@@ -135,70 +145,64 @@ public class Server implements  Runnable{
                         } else {
                             out.println("No nickname provided");
                         }
-                    }
-                    else if(message.startsWith("/quit")){
-                            broadcast(nickname + " left the chat!");
-                            System.out.println(nickname + "left the chat!");
-                            shutdown();
-                    }
-                    else if(message.startsWith("/timeout")){
-                        broadcast(nickname + " desconectado por inatividade");
-                        System.out.println(nickname + " desconectado!");
+                    } else if (message.startsWith("/quit")) {
+                        broadcast(nickname + " left the chat!");
+                        System.out.println(nickname + "left the chat!");
                         shutdown();
-                    }
-
-                    else if(message.startsWith("/msg ")) {
+                    } else if (message.startsWith("/timeout")) {
+                        broadcast(nickname + " disconnected due to inactivity");
+                        System.out.println(nickname + " disconnected!");
+                        shutdown();
+                    } else if (message.startsWith("/private")) {
                         {
                             String[] messageSplit = message.split(" ", 3);
                             if (messageSplit.length == 3) {
                                 String recieveNickname = messageSplit[1];
                                 String privateMessage = messageSplit[2];
                                 sendPrivateMessage(privateMessage, recieveNickname, nickname);
-                            
 
-                    } else {
-                        out.println("Incorrect private message format. Use /msg <nickname> <message>");
-                    }
-                
-                }
-            }
 
-                    else if(message.startsWith("/history")) {
-                        
+                            } else {
+                                out.println("Incorrect private message format. Use /msg <nickname> <message>");
+                            }
+
+                        }
+                    } else if (message.startsWith("/history ")) {
+
                         String[] messageSplit = message.split(" ", 2);
-                        if(messageSplit.length == 2) {
+                        if (messageSplit.length == 2) {
                             String historyNick = messageSplit[1];
                             sendUserHistory(historyNick);
                         } else {
                             out.println("Incorret history format. Use /history <nickname>");
                         }
 
+                    } else if (message.startsWith("/msg")) {
+                        broadcast(nickname + ": " + message.substring(5));
                     }
-
-
                     else{
-                        broadcast(nickname + ": " + message);
+                        out.println("Incorrect message format");
                     }
 
                 }
-            } catch (IOException e){
+            } catch (IOException e) {
                 shutdown();
             }
         }
 
-        public void sendMessage(String message){
+        public void sendMessage(String message) {
             out.println(message);
         }
 
-        public void shutdown(){
-            try{
+        //Função de fechamento do servidor
+        public void shutdown() {
+            try {
                 in.close();
                 out.close();
-                if(!client.isClosed()){
+                if (!client.isClosed()) {
                     client.close();
                 }
-            }
-            catch(IOException e){
+            } catch (IOException e) {
                 //ignore
             }
         }
