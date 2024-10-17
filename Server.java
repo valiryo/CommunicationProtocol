@@ -63,21 +63,29 @@ public class Server implements Runnable {
     public void broadcast(String message) {
         messageHistory.add(message);
         for (ConectionHandler ch : connections) {
-            if (ch != null) {
+            if (ch != null && ch.getAway() == false) {
                 ch.sendMessage(message);
             }
         }
     }
 
     //Função para mensagens privadas
-    public Boolean sendPrivateMessage(String message, String recieveNickname, String senderNickname) {
+    public int sendPrivateMessage(String message, String recieveNickname, String senderNickname) {
+        //1: existe
+        //2: existe mas está ausente
+        //3: não existe
         for (ConectionHandler ch : connections) {
             if (ch != null && ch.getNickname().equals(recieveNickname)) {
-                ch.sendMessage("[Private from " + senderNickname + "]: " + message);
-                return true;
+                if(ch.getAway() == false){
+                    ch.sendMessage("[Private from " + senderNickname + "]: " + message);
+                    return 1;
+                }
+                else{
+                    return 2;
+                }
             }
         }
-        return false;
+        return 3;
     }
 
 
@@ -101,11 +109,28 @@ public class Server implements Runnable {
         private BufferedReader in; //Buffer para receber dados dos clientes
         private PrintWriter out; //Buffer para mandar dados para os clientes
         private String nickname; //nome do usuário
+        private Boolean away; //Usuário está ausente?
 
         public String getNickname() {
             return nickname;
         }
 
+        public void changeAway(){
+            if(this.away == false){
+                this.away = true;
+                out.println("[Status successfully changed to away]");
+                broadcast(this.getNickname() + " AFK!");
+
+            }
+            else{
+                this.away = false;
+                out.println("[[Status successfully changed to not away]]");
+                broadcast(this.getNickname() + " NO LONGER AFK!");
+            }
+        }
+        public Boolean getAway(){
+            return this.away;
+        }
 
         public ConectionHandler(Socket client) {
             this.client = client;
@@ -126,7 +151,7 @@ public class Server implements Runnable {
         @Override
         public void run() {
             try {
-
+                away = false;  //meu próprio estado
                 out = new PrintWriter(client.getOutputStream(), true);
                 in = new BufferedReader(new InputStreamReader(client.getInputStream()));
                 out.println("Please enter a nickname: ");
@@ -150,26 +175,29 @@ public class Server implements Runnable {
                         } else {
                             out.println("No nickname provided");
                         }
-                    } else if (message.startsWith("/quit")) {
+                    } else if (message.equals("/quit")) {
                         out.println("You have been disconnected");
                         broadcast(nickname + " left the chat!");
                         System.out.println(nickname + "left the chat!");
                         shutdown();
-                    } else if (message.startsWith("/timeout")) {
+                    } else if (message.equals("/timeout")) {
                         broadcast(nickname + " disconnected due to inactivity");
                         System.out.println(nickname + " disconnected!");
                         shutdown();
-                    } else if (message.startsWith("/private")) {
+                    } else if (message.startsWith("/private ")) {
                         {
                             String[] messageSplit = message.split(" ", 3);
                             if (messageSplit.length == 3) {
                                 String recieveNickname = messageSplit[1];
                                 String privateMessage = messageSplit[2];
-                                if(sendPrivateMessage(privateMessage, recieveNickname, nickname)){
-                                    out.println("Private message sent!");
+                                if(sendPrivateMessage(privateMessage, recieveNickname, nickname) == 1){
+                                    out.println("[Private message sent!]");
+                                }
+                                else if(sendPrivateMessage(privateMessage, recieveNickname, nickname) == 2){
+                                    out.println("[AFK recipient]");
                                 }
                                 else{
-                                    out.println("Invalid nickname provided");
+                                    out.println("[Invalid nickname!]");
                                 }
 
 
@@ -181,7 +209,6 @@ public class Server implements Runnable {
                     } else if (message.startsWith("/history ")) {
 
                         String[] messageSplit = message.split(" ", 2);
-                        if (messageSplit.length == 2) {
                             String historyNick = messageSplit[1];
                             if(sendUserHistory(historyNick)){
                                 out.println();
@@ -190,13 +217,12 @@ public class Server implements Runnable {
                             else{
                                 out.println("No messages found");
                             }
-                        } else {
-                            out.println("Incorrect history format. Use /history <nickname>");
-                        }
 
-                    } else if (message.startsWith("/msg")) {
+                    } else if (message.startsWith("/msg ")) {
                         out.println("[Transmitting...]");
                         broadcast(nickname + ": " + message.substring(5));
+                    } else if(message.equals("/away")){
+                        this.changeAway();
                     }
                     else{
                         out.println("Incorrect command format");
