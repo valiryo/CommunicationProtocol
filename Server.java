@@ -5,6 +5,7 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 //import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -17,6 +18,7 @@ public class Server implements Runnable {
     private ExecutorService pool; //pool de threads que contem os clientes
     private Scanner sc;
     private ArrayList<String> messageHistory; //lista de mensagens de cada cliente
+    private static List<String> activeNicknames = new ArrayList<>();  // Lista de nicknames ativos
 
 
     public Server() {
@@ -156,6 +158,15 @@ public class Server implements Runnable {
                 in = new BufferedReader(new InputStreamReader(client.getInputStream()));
                 out.println("Please enter a nickname: ");
                 nickname = in.readLine();
+
+                synchronized (activeNicknames) {
+                    while (activeNicknames.stream().anyMatch(nick -> nick.equalsIgnoreCase(nickname))) {
+                        out.println("Nickname already in use, please choose another one.");
+                        nickname = in.readLine();
+                    }
+                    activeNicknames.add(nickname);
+                }
+
                 System.out.println(nickname + " Connected!");
                 broadcast(nickname + " joined the chat!");
 
@@ -168,10 +179,20 @@ public class Server implements Runnable {
                     if (message.startsWith("/nick ")) {
                         String[] messageSplit = message.split(" ", 2);
                         if (messageSplit.length == 2) {
-                            broadcast(nickname + " rename themselves to " + messageSplit[1]);
-                            System.out.println(nickname + " rename themselves to " + messageSplit[1]);
-                            nickname = messageSplit[1];
-                            out.println("Sucessfully change nickname to " + nickname);
+                            String newNickname = messageSplit[1];
+                            // Verifica se o novo nickname já existe
+                            synchronized (activeNicknames) {
+                                if (activeNicknames.contains(newNickname)) {
+                                    out.println("Nickname already in use, please choose another one.");
+                                } else {
+                                    broadcast(nickname + " renamed themselves to " + newNickname);
+                                    System.out.println(nickname + " renamed themselves to " + newNickname);
+                                    activeNicknames.remove(nickname);
+                                    nickname = newNickname;
+                                    activeNicknames.add(nickname);
+                                    out.println("Successfully changed nickname to " + nickname);
+                                }
+                            }
                         } else {
                             out.println("No nickname provided");
                         }
@@ -241,13 +262,16 @@ public class Server implements Runnable {
         //Função de fechamento do servidor
         public void shutdown() {
             try {
-                in.close();
-                out.close();
+                synchronized (activeNicknames) {
+                    activeNicknames.remove(nickname);  // Remove o nickname da lista de ativos
+                }
+                in.close();  // Fecha o leitor de entrada
+                out.close();  // Fecha o escritor de saída
                 if (!client.isClosed()) {
-                    client.close();
+                    client.close();  // Fecha o socket do cliente
                 }
             } catch (IOException e) {
-                //ignore
+                // Ignore
             }
         }
 
